@@ -121,13 +121,13 @@ void FormatData(std::stringstream& stream, bool wtPer)
     std::vector<int> matDegenVec;
     stringstream numConv, streamOut;
     bool found=false;
-    string densUnits[2] = {"10^24 atoms/cm3", "g/cm3"};
+    string densUnits[2] = {"x10^24 atoms/cm3", "g/cm3"};
     int num, type, degen=1, count, matNum;
 
     while(stream)
     {
         letter = stream.get();
-        if((letter!='c')&&(letter!='$'))
+        if((letter!='c')&&(letter!='$')&&(letter!='C'))
         {
             stream.getline(line, 256);
             break;
@@ -141,6 +141,11 @@ void FormatData(std::stringstream& stream, bool wtPer)
     while(stream)
     {
         letter = stream.get();
+        while(!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))))
+        {
+            letter = stream.get();
+        }
+
         if((letter>='0')&&(letter<='9'))
         {
             while((letter>='0')&&(letter<='9'))
@@ -324,20 +329,30 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
     std::vector<double> isoAbunVec;
     std::vector<int> isoAmountTypeVec;
     std::vector<double> isoMassVec;
-    double libTemp[5] = {293.6, 600, 900, 1200, 2500};
+    double libTemp7[5] = {293.6, 600, 900, 1200, 2500};
+    double libTemp6[6] = {0., 293.6, 600, 900, 1200, 2500};
     string compUnits[2] = {"atomic%", "weight%"};
     string name;
     stringstream numConv;
     char line[256];
-    int A, Z, num, index;
+    int A, Z, num, index, lib=6;
     double amount;
-
+    bool endFlag=false;
     while(true)
     {
         while(!((letter>='0')&&(letter<='9')))
         {
+            if(stream.peek()=='$')
+                stream.getline(line, 256);
+            if(((stream.peek()>='a')&&(stream.peek()<='z'))||((stream.peek()>='A')&&(stream.peek()<='Z')))
+            {
+                endFlag=true;
+                break;
+            }
             letter=stream.get();
         }
+        if(endFlag)
+            break;
         while((letter>='0')&&(letter<='9'))
         {
             numConv << letter;
@@ -357,10 +372,17 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
         numConv.str("");
 
         letter=stream.get();
+        numConv << letter;
+        numConv >> lib;
+        numConv.clear();
+        numConv.str("");
         letter=stream.get();
         numConv << letter;
         numConv >> index;
-        isoTempVec.push_back(libTemp[index]);
+        if(lib==6)
+            isoTempVec.push_back(libTemp6[index]);
+        else
+            isoTempVec.push_back(libTemp7[index]);
         numConv.clear();
         numConv.str("");
 
@@ -385,7 +407,7 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
             letter = stream.get();
         }
 
-        while(((letter>='0')&&(letter<='9'))||(letter=='.'))
+        while(((letter>='0')&&(letter<='9'))||(letter=='.')||(letter=='e')||(letter=='-')||(letter=='+'||(letter=='E')))
         {
             numConv << letter;
             letter = stream.get();
@@ -395,7 +417,7 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
         isoAmountVec.push_back(amount);
         numConv.clear();
         numConv.str("");
-
+        /*
         while((letter!='&')&&(letter!='\n')&&(stream))
         {
             letter=stream.get();
@@ -405,6 +427,7 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
         {
             break;
         }
+        */
     }
 
     double sum=0.;
@@ -492,7 +515,7 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
     streamOut << "Densities Used: ";
     for(int i=0; i<matDegen; i++)
     {
-        streamOut << matDensVec[count+i] << " ";
+        streamOut << matDensVec[count+i] << "\t";
     }
     streamOut << '\n' << endl;
     streamOut.fill(' ');

@@ -18,7 +18,21 @@ class IsotopeMass
             int iso=0;
             if(elemBaseA[Z]>0)
             {
-                iso = A-elemBaseA[Z];
+                if((A==0)&&(Z>0))
+                {
+                    double sum=0.;
+                    for(int i=0; i<elemNumIso[Z]; i++)
+                    {
+                        sum+=isotopeMass[Z][i]*isoNatAbun[Z][i];
+                    }
+                    if(sum==0.)
+                    {
+                        cout << "\nisotope Z=" << Z << " A=" << A << " is not in the mass list" << endl;
+                    }
+                    return sum;
+                }
+                else
+                    iso = A-elemBaseA[Z];
             }
             if((iso<=elemNumIso[Z])&&(iso>=0))
             {
@@ -36,6 +50,7 @@ class IsotopeMass
 
         }
         static double **isotopeMass;
+        static double **isoNatAbun;
         static int *elemNumIso;
         static int *elemBaseA;
     protected:
