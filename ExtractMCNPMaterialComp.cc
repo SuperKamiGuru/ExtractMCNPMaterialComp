@@ -141,9 +141,11 @@ void FormatData(std::stringstream& stream, bool wtPer)
     while(stream)
     {
         letter = stream.get();
-        while(!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))))
+        count=1;
+        while((!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))))&&(count<5))
         {
             letter = stream.get();
+            count++;
         }
 
         if((letter>='0')&&(letter<='9'))
@@ -379,8 +381,8 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
         letter=stream.get();
         numConv << letter;
         numConv >> index;
-        if(lib==6)
-            isoTempVec.push_back(libTemp6[index]);
+        if(lib!=7)
+            isoTempVec.push_back(300.0);
         else
             isoTempVec.push_back(libTemp7[index]);
         numConv.clear();
