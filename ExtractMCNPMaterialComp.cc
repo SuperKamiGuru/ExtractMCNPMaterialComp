@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     }
     else
     {
-        cout << "\nGive the the output directory, then specify the MCNP input file that you want to convert that you want to convert\n" <<  endl;
+        cout << "\nGive the the output directory, then specify the MCNP input file that you want to convert\n" <<  endl;
         elementNames.ClearStore();
         isotopeMass.ClearStore();
         return 1;
@@ -519,7 +519,9 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
     {
         streamOut << matDensVec[count+i] << "\t";
     }
+    streamOut << '\n' << "Number of Isotopes: " << isoNameVec.size();
     streamOut << '\n' << endl;
+
     streamOut.fill(' ');
     streamOut << std::setw(20) << std::left << "Isotope Name:" << std::setw(20) << std::left << "Amount:" << std::setw(20) << std::left << "Mass:"
               << std::setw(20) << std::left << "Temperature:" << '\n' << endl;
