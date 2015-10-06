@@ -333,7 +333,7 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
     std::vector<double> isoMassVec;
     double libTemp7[5] = {293.6, 600, 900, 1200, 2500};
     double libTemp6[6] = {0., 293.6, 600, 900, 1200, 2500};
-    string compUnits[2] = {"atomic%", "weight%"};
+    string compUnits[2] = {"abun%", "weight%"};
     string name;
     stringstream numConv;
     char line[256];
