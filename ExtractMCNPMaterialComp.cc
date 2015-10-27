@@ -18,8 +18,9 @@ using namespace std;
 // static container with the isotope mass list for that version of ENDF and use it
 void GetDataStream( string geoFileName, std::stringstream& ss);
 void FormatData(std::stringstream& stream, bool wtPer);
+bool CheckForLineCont(stringstream& stream, int &multiLineFlagPos, char &letter);
 void Swap(std::vector<int> &matNumVec, std::vector<string> &matDensVec,int pos1, int pos2);
-void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter, int matNum, int count, std::vector<string> &matDensVec, int matDegen, bool wtPer);
+void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter, int matNum, int count, std::vector<string> &matDensVec, int matDegen, bool wtPer, int &multiLineFlagPos);
 string CreateMacroName(string geoFileName, string outDirName);
 void SetDataStream( string macroFileName, std::stringstream& ss);
 
@@ -121,8 +122,8 @@ void FormatData(std::stringstream& stream, bool wtPer)
     std::vector<int> matDegenVec;
     stringstream numConv, streamOut;
     bool found=false;
-    string densUnits[2] = {"x10^24 atoms/cm3", "g/cm3"};
-    int num, type, degen=1, count, matNum;
+    string densUnits[2] = {"x10^24 atoms/cm3", "g/cm3"}, lineStr;
+    int num, type, degen=1, count, matNum, pos, multiLineFlagPos=1000;
 
     while(stream)
     {
@@ -140,6 +141,15 @@ void FormatData(std::stringstream& stream, bool wtPer)
 
     while(stream)
     {
+        pos=stream.tellg();
+        getline(stream,lineStr);
+        multiLineFlagPos=lineStr.find_first_of('&');
+        if(multiLineFlagPos!=-1)
+        {
+            multiLineFlagPos+=pos;
+        }
+        stream.seekg(pos, stream.beg);
+
         letter = stream.get();
         count=1;
         while((!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))))&&(count<5))
@@ -154,10 +164,12 @@ void FormatData(std::stringstream& stream, bool wtPer)
             {
                 letter = stream.get();
             }
-            while(!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))))
+            CheckForLineCont(stream,multiLineFlagPos,letter);
+            while(!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))||(letter=='\n')||(letter=='$')))
             {
                 letter = stream.get();
             }
+            CheckForLineCont(stream,multiLineFlagPos,letter);
             if((letter>='0')&&(letter<='9'))
             {
                 while((letter>='0')&&(letter<='9'))
@@ -169,16 +181,19 @@ void FormatData(std::stringstream& stream, bool wtPer)
                 matNumVec.push_back(num);
                 numConv.clear();
                 numConv.str("");
+                cout << "Material #: " << num << endl;
             }
             else
             {
                 stream.getline(line, 256);
                 break;
             }
-            while(!((letter=='+')||(letter=='-')||((letter>='0')&&(letter<='9'))||(letter=='.')))
+            CheckForLineCont(stream,multiLineFlagPos,letter);
+            while(!((letter=='+')||(letter=='-')||((letter>='0')&&(letter<='9'))||(letter=='.')||(letter=='\n')||(letter=='$')))
             {
                 letter = stream.get();
             }
+            CheckForLineCont(stream,multiLineFlagPos,letter);
             if(((letter>='0')&&(letter<='9'))||(letter=='.'))
             {
                 type=0;
@@ -202,7 +217,12 @@ void FormatData(std::stringstream& stream, bool wtPer)
             matDensVec.push_back(numConv.str()+densUnits[type]);
             numConv.clear();
             numConv.str("");
-            stream.getline(line, 256);
+
+            while(letter!='\n')
+            {
+                letter = stream.get();
+                CheckForLineCont(stream,multiLineFlagPos,letter);
+            }
         }
         else
         {
@@ -258,9 +278,24 @@ void FormatData(std::stringstream& stream, bool wtPer)
 
     while(stream)
     {
+        count=1;
         letter = stream.get();
+        while((!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))))&&(count<5))
+        {
+            letter = stream.get();
+            count++;
+        }
         if(letter=='m')
         {
+            pos=stream.tellg();
+            getline(stream,lineStr);
+            multiLineFlagPos=lineStr.find_first_of('&');
+            if(multiLineFlagPos!=-1)
+            {
+                multiLineFlagPos+=pos;
+            }
+            stream.seekg(pos, stream.beg);
+
             letter = stream.get();
             if((letter>='0')&&(letter<='9'))
             {
@@ -274,13 +309,15 @@ void FormatData(std::stringstream& stream, bool wtPer)
                 numConv.str("");
                 count=0;
 
+                CheckForLineCont(stream,multiLineFlagPos,letter);
+
                 while((matNumVec[count]!=matNum)&&(count!=int(matNumVec.size())))
                 {
                     count++;
                 }
                 if(count!=int(matNumVec.size()))
                 {
-                    GetIsotopeData(stream, streamOut, letter, matNum, count, matDensVec, matDegenVec[count], wtPer);
+                    GetIsotopeData(stream, streamOut, letter, matNum, count, matDensVec, matDegenVec[count], wtPer, multiLineFlagPos);
                     found=true;
                 }
             }
@@ -306,6 +343,46 @@ void FormatData(std::stringstream& stream, bool wtPer)
     }
 }
 
+bool CheckForLineCont(stringstream& stream, int &multiLineFlagPos, char &letter)
+{
+    int pos;
+    char line[256];
+    string lineStr;
+
+    if((multiLineFlagPos>0)&&(multiLineFlagPos<stream.tellg()))
+    {
+        stream.getline(line, 256);
+        while(stream.good())
+        {
+            int count=1;
+            letter = stream.get();
+            while((!(((letter>='0')&&(letter<='9'))||((letter>='a')&&(letter<='z'))||((letter>='A')&&(letter<='Z'))||(letter=='+')||(letter=='-')))&&(count<5))
+            {
+                letter = stream.get();
+                count++;
+            }
+            if((letter=='c')||(letter=='$')||(letter=='C'))
+            {
+                stream.getline(line, 256);
+            }
+            else
+            {
+                break;
+            }
+        }
+        pos=stream.tellg();
+        getline(stream,lineStr);
+        multiLineFlagPos=lineStr.find_first_of('&');
+        if(multiLineFlagPos!=-1)
+        {
+            multiLineFlagPos+=pos;
+        }
+        stream.seekg(pos, stream.beg);
+        return true;
+    }
+    return false;
+}
+
 void Swap(std::vector<int> &matNumVec, std::vector<string> &matDensVec,int pos1, int pos2)
 {
     int swapNum;
@@ -321,7 +398,7 @@ void Swap(std::vector<int> &matNumVec, std::vector<string> &matDensVec,int pos1,
     matDensVec[pos2] = swapDens;
 }
 
-void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter, int matNum, int count, std::vector<string> &matDensVec, int matDegen, bool wtPer)
+void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter, int matNum, int count, std::vector<string> &matDensVec, int matDegen, bool wtPer, int &multiLineFlagPos)
 {
     ElementNames* elementNames;
     IsotopeMass* isotopeMass;
@@ -340,21 +417,23 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
     int A, Z, num, index, lib=6;
     double amount;
     bool endFlag=false;
+
     while(true)
     {
         while(!((letter>='0')&&(letter<='9')))
         {
-            if(stream.peek()=='$')
-                stream.getline(line, 256);
-            if(((stream.peek()>='a')&&(stream.peek()<='z'))||((stream.peek()>='A')&&(stream.peek()<='Z')))
+            if(letter=='$'||letter=='\n')
             {
+                stream.getline(line, 256);
                 endFlag=true;
                 break;
             }
             letter=stream.get();
+            CheckForLineCont(stream,multiLineFlagPos,letter);
         }
         if(endFlag)
             break;
+
         while((letter>='0')&&(letter<='9'))
         {
             numConv << letter;
@@ -366,6 +445,11 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
 
         Z = floor(num/1000);
         A = num-Z*1000;
+
+        if(Z==0)
+        {
+            continue;
+        }
 
         numConv << Z << '_' << A << '_' << elementNames->GetName(Z);
         isoNameVec.push_back(numConv.str());
@@ -388,12 +472,15 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
         numConv.clear();
         numConv.str("");
 
+        CheckForLineCont(stream,multiLineFlagPos,letter);
+
         letter=stream.get();
         letter=stream.get();
-        while(!((letter=='+')||(letter=='-')||((letter>='0')&&(letter<='9'))||(letter=='.')))
+        while(!((letter=='+')||(letter=='-')||((letter>='0')&&(letter<='9'))||(letter=='.')||(letter=='\n')||(letter=='$')))
         {
             letter = stream.get();
         }
+        CheckForLineCont(stream,multiLineFlagPos,letter);
         if(((letter>='0')&&(letter<='9'))||(letter=='.'))
         {
             isoAmountTypeVec.push_back(0);
@@ -419,17 +506,6 @@ void GetIsotopeData(stringstream &stream, stringstream &streamOut, char &letter,
         isoAmountVec.push_back(amount);
         numConv.clear();
         numConv.str("");
-        /*
-        while((letter!='&')&&(letter!='\n')&&(stream))
-        {
-            letter=stream.get();
-        }
-        stream.getline(line, 256);
-        if(letter!='&')
-        {
-            break;
-        }
-        */
     }
 
     double sum=0.;
